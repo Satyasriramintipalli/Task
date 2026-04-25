@@ -1,10 +1,10 @@
-name: Terraform Delete-resource
+name: Terraform Createresource
 
 on:
   workflow_dispatch:
 
 jobs:
-  destroy:
+  apply:
     runs-on: self-hosted
 
     steps:
@@ -20,5 +20,8 @@ jobs:
       - name: Init
         run: terraform init
 
-      - name: Destroy
-        run: terraform destroy -auto-approve
+      - name: Plan
+        run: terraform plan
+
+      - name: Apply
+        run: terraform apply -auto-approve
