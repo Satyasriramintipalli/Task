@@ -6,26 +6,28 @@ resource "aws_vpc" "main" {
   }
 }
 
-# PUBLIC SUBNET
 resource "aws_subnet" "public" {
+  count = length(var.azs)
+
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = var.az
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
+  availability_zone       = var.azs[count.index]
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "public-subnet"
+    Name = "public-subnet-${count.index}"
   }
 }
 
-# PRIVATE SUBNET
 resource "aws_subnet" "private" {
+  count = length(var.azs)
+
   vpc_id            = aws_vpc.main.id
-  cidr_block        = var.private_subnet_cidr
-  availability_zone = var.az
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 10)
+  availability_zone = var.azs[count.index]
 
   tags = {
-    Name = "private-subnet"
+    Name = "private-subnet-${count.index}"
   }
 }
 
@@ -42,7 +44,7 @@ resource "aws_eip" "nat" {
 # NAT GATEWAY
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public.id
+  subnet_id     = aws_subnet.public[0].id
 }
 
 # PUBLIC ROUTE TABLE
@@ -67,13 +69,16 @@ resource "aws_route" "private_internet" {
   nat_gateway_id         = aws_nat_gateway.nat.id
 }
 
-# ASSOCIATIONS
 resource "aws_route_table_association" "public_assoc" {
-  subnet_id      = aws_subnet.public.id
+  count = length(var.azs)
+
+  subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public_rt.id
 }
 
 resource "aws_route_table_association" "private_assoc" {
-  subnet_id      = aws_subnet.private.id
+  count = length(var.azs)
+
+  subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private_rt.id
 }
