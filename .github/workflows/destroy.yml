@@ -1,15 +1,11 @@
-name: Terraform DestroyResources
+name: Terraform Destroy
 
 on:
-  workflow_dispatch:  
+  workflow_dispatch:
 
 jobs:
   terraform:
     runs-on: self-hosted
-
-    defaults:
-      run:
-        working-directory: ~/Task 
 
     steps:
       - name: Checkout code
