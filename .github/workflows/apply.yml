@@ -1,7 +1,7 @@
 name: Terraform CreateResource
 
 on:
-  workflow-dispatch:
+  workflow_dispatch:
 
 jobs:
   terraform:
