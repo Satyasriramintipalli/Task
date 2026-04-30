@@ -1,0 +1,8 @@
+image:
+  repository: 393060838804.dkr.ecr.us-east-1.amazonaws.com/crud-app
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80

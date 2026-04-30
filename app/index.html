@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User CRUD App</title>
+</head>
+<body>
+
+<h2>User Management</h2>
+
+<input id="name" placeholder="Name">
+<input id="email" placeholder="Email">
+<button onclick="createUser()">Create</button>
+
+<h3>Users</h3>
+<ul id="users"></ul>
+
+<script>
+const API = window.location.origin;
+
+// Fetch users
+async function getUsers() {
+  const res = await fetch(API + "/users");
+  const data = await res.json();
+
+  const list = document.getElementById("users");
+  list.innerHTML = "";
+
+  data.forEach(user => {
+    const li = document.createElement("li");
+    li.innerHTML = `
+      ${user.name} (${user.email})
+      <button onclick="deleteUser('${user._id}')">Delete</button>
+      <button onclick="updateUser('${user._id}')">Update</button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+// Create user
+async function createUser() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+
+  await fetch(API + "/users", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ name, email })
+  });
+
+  getUsers();
+}
+
+// Delete user
+async function deleteUser(id) {
+  await fetch(API + "/users/" + id, { method: "DELETE" });
+  getUsers();
+}
+
+// Update user
+async function updateUser(id) {
+  const name = prompt("Enter new name:");
+  const email = prompt("Enter new email:");
+
+  await fetch(API + "/users/" + id, {
+    method: "PUT",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ name, email })
+  });
+
+  getUsers();
+}
+
+// Load users initially
+getUsers();
+</script>
+
+</body>
+</html>

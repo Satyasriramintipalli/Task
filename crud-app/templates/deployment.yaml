@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crud-app.fullname" . }}
+  labels:
+    {{- include "crud-app.labels" . | nindent 4 }}
+
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: crud-app
+      app.kubernetes.io/instance: crud-app
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: crud-app
+        app.kubernetes.io/instance: crud-app
+
+    spec:
+      imagePullSecrets:
+        - name: ecr-secret
+
+      containers:
+        - name: crud-app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: 3000   
+
+          env:
+            - name: MONGO_URI
+              value: mongodb://mongodb:27017

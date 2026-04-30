@@ -1,0 +1,52 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: app
+
+      - name: Lint
+        run: npm run lint
+        working-directory: app
+
+      - name: Test
+        run: npm test
+        working-directory: app
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: app
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Docker Build
+        run: docker build -t crud-app ./app
+
+      - name: Login to ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | \
+          docker login --username AWS --password-stdin 393060838804.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Tag Image
+        run: docker tag crud-app:latest 393060838804.dkr.ecr.us-east-1.amazonaws.com/crud-app:latest
+
+      - name: Push Image
+        run: docker push 393060838804.dkr.ecr.us-east-1.amazonaws.com/crud-app:latest
