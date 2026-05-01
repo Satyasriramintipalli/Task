@@ -21,5 +21,5 @@ module "eks" {
 # S3 BUCKET
 ##################################
 resource "aws_s3_bucket" "app_bucket" {
-  bucket = "crud-app-bucket-${var.cluster_name}"
+  bucket = "crud-app-${var.cluster_name}-${random_id.bucket_suffix.hex}"
 }
