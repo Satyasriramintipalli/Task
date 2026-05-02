@@ -1,4 +1,4 @@
-name: Observability-pipeline
+name: Observability-Pipeline
 
 on:
   workflow_dispatch:
@@ -15,32 +15,34 @@ jobs:
       CLUSTER_NAME: app-eks-cluster
 
     steps:
-      # Checkout
+      # ---------------- CHECKOUT ----------------
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Ensure tools
+      # ---------------- INSTALL TOOLS ----------------
       - name: Ensure kubectl + helm
         run: |
           sudo apt update
           sudo apt install -y curl
 
+          # kubectl
           if ! command -v kubectl &> /dev/null; then
             curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
             chmod +x kubectl
             sudo mv kubectl /usr/local/bin/
           fi
 
+          # helm
           if ! command -v helm &> /dev/null; then
             curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           fi
 
-      # Connect to EKS
+      # ---------------- CONNECT TO EKS ----------------
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region $AWS_REGION --name $CLUSTER_NAME
 
       # ================= MONITORING =================
-      - name: Install Prometheus + Grafana (light)
+      - name: Install Prometheus + Grafana
         run: |
           kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
@@ -57,7 +59,7 @@ jobs:
             --wait --timeout 10m
 
       # ================= LOGGING =================
-      - name: Install Logging (Fluent Bit only - lightweight)
+      - name: Install Fluent Bit (lightweight logging)
         run: |
           kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
 
@@ -72,7 +74,7 @@ jobs:
             --wait --timeout 5m
 
       # ================= OBSERVABILITY =================
-      - name: Install OpenTelemetry
+      - name: Install OpenTelemetry Collector
         run: |
           kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
 
@@ -82,6 +84,8 @@ jobs:
           helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
             -n observability \
             --set mode=deployment \
+            --set image.repository=otel/opentelemetry-collector \
+            --set image.tag=0.102.0 \
             --set resources.requests.memory=128Mi \
             --set resources.limits.memory=256Mi \
             --wait --timeout 5m
@@ -89,14 +93,14 @@ jobs:
       # ================= VERIFY =================
       - name: Verify setup
         run: |
-          echo "=== Monitoring ==="
+          echo "===== Monitoring ====="
           kubectl get pods -n monitoring
 
-          echo "=== Logging ==="
+          echo "===== Logging ====="
           kubectl get pods -n logging
 
-          echo "=== Observability ==="
+          echo "===== Observability ====="
           kubectl get pods -n observability
 
-          echo "=== Services ==="
+          echo "===== Services ====="
           kubectl get svc -n monitoring
