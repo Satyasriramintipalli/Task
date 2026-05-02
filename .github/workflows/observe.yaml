@@ -25,14 +25,12 @@ jobs:
           sudo apt update
           sudo apt install -y curl
 
-          # kubectl
           if ! command -v kubectl &> /dev/null; then
             curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
             chmod +x kubectl
             sudo mv kubectl /usr/local/bin/
           fi
 
-          # helm
           if ! command -v helm &> /dev/null; then
             curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           fi
@@ -74,7 +72,7 @@ jobs:
             --wait --timeout 5m
 
       # ================= OBSERVABILITY =================
-      - name: Install OpenTelemetry Collector (FIXED)
+      - name: Install OpenTelemetry Collector (FINAL FIX)
         run: |
           kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
 
@@ -88,9 +86,12 @@ jobs:
             --set image.tag=0.102.0 \
             --set config.receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317 \
             --set config.receivers.otlp.protocols.http.endpoint=0.0.0.0:4318 \
-            --set config.exporters.logging.loglevel=debug \
+            --set config.exporters.logging.verbosity=Detailed \
+            --set config.extensions.health_check.endpoint=0.0.0.0:13133 \
+            --set config.service.extensions[0]=health_check \
             --set config.service.pipelines.traces.receivers[0]=otlp \
             --set config.service.pipelines.traces.exporters[0]=logging \
+            --set ports.metrics.enabled=false \
             --set resources.requests.memory=64Mi \
             --set resources.limits.memory=128Mi \
             --wait --timeout 10m
