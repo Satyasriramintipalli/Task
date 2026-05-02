@@ -74,6 +74,11 @@ jobs:
       # ================= OBSERVABILITY =================
       - name: Install OpenTelemetry Collector (FINAL FIX)
         run: |
+          # Clean old broken resources
+          kubectl delete deployment otel-collector-opentelemetry-collector -n observability --ignore-not-found
+          kubectl delete svc otel-collector-opentelemetry-collector -n observability --ignore-not-found
+          kubectl delete configmap otel-collector-opentelemetry-collector -n observability --ignore-not-found
+
           kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
 
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
@@ -86,15 +91,16 @@ jobs:
             --set image.tag=0.102.0 \
             --set config.receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317 \
             --set config.receivers.otlp.protocols.http.endpoint=0.0.0.0:4318 \
+            --set config.processors.batch={} \
             --set config.exporters.logging.verbosity=Detailed \
             --set config.extensions.health_check.endpoint=0.0.0.0:13133 \
             --set config.service.extensions[0]=health_check \
             --set config.service.pipelines.traces.receivers[0]=otlp \
+            --set config.service.pipelines.traces.processors[0]=batch \
             --set config.service.pipelines.traces.exporters[0]=logging \
-            --set ports.metrics.enabled=false \
+            --set service.telemetry.metrics.address="" \
             --set resources.requests.memory=64Mi \
-            --set resources.limits.memory=128Mi \
-            --wait --timeout 10m
+            --set resources.limits.memory=128Mi
 
       # ================= VERIFY =================
       - name: Verify
