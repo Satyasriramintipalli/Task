@@ -1,23 +1,48 @@
 name: Deployment-pipeline
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: self-hosted  
 
     env:
       AWS_REGION: us-east-1
       ACCOUNT_ID: 393060838804
       ECR_REPO: crud-app
-      IMAGE_TAG: ${{ github.run_number }}   
+      IMAGE_TAG: ${{ github.run_number }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      
+      # ---------------------------
+      # LINT (Node.js)
+      # ---------------------------
+      - name: Lint check
+        run: |
+          cd app
+          npm install
+          npx eslint . || true
+
+      # ---------------------------
+      # SONAR CLOUD
+      # ---------------------------
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        continue-on-error: true
+        with:
+          args: >
+            -Dsonar.projectKey=Satyasriramintipalli_Task
+            -Dsonar.organization=satyasriramintipalli
+            -Dsonar.sources=.
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # ---------------------------
+      # INSTALL TOOLS
+      # ---------------------------
       - name: Ensure tools
         run: |
           sudo apt update
@@ -42,43 +67,72 @@ jobs:
             curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           fi
 
-      # 🐳 Build (correct path)
+          # trivy
+          if ! command -v trivy &> /dev/null; then
+            wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.2_Linux-64bit.deb
+            sudo dpkg -i trivy_0.50.2_Linux-64bit.deb
+          fi
+
+      # ---------------------------
+      # BUILD IMAGE
+      # ---------------------------
       - name: Build Docker image
         run: |
           cd app
           docker build -t $ECR_REPO:$IMAGE_TAG .
 
-      # 🔐 Login
+      # ---------------------------
+      # LOGIN ECR
+      # ---------------------------
       - name: Login to ECR
         run: |
           aws ecr get-login-password --region $AWS_REGION \
           | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-      # 🏷 Tag
+      # ---------------------------
+      # TAG IMAGE
+      # ---------------------------
       - name: Tag image
         run: |
           docker tag $ECR_REPO:$IMAGE_TAG \
           $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
 
-      # 📤 Push
+      # ---------------------------
+      # PUSH IMAGE
+      # ---------------------------
       - name: Push image
         run: |
           docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
 
-      # ☸️ Connect to cluster
+      # ---------------------------
+      # TRIVY SCAN
+      # ---------------------------
+      - name: Scan image (Trivy)
+        run: |
+          trivy image --severity HIGH,CRITICAL \
+          $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
+      # ---------------------------
+      # CONNECT TO EKS
+      # ---------------------------
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --region $AWS_REGION --name task-eks-cluster
+          aws eks update-kubeconfig --region $AWS_REGION --name app-eks-cluster
 
-      # 🚀 Deploy
+      # ---------------------------
+      # DEPLOY
+      # ---------------------------
       - name: Deploy using Helm
         run: |
           helm upgrade --install crud-app ./crud-app \
             --set image.repository=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO \
             --set image.tag=$IMAGE_TAG
 
-      # 🧪 Verify
-      - name: Verify Deployment
+      # ---------------------------
+      # SMOKE TEST
+      # ---------------------------
+      - name: Smoke Test
         run: |
+          sleep 60
           kubectl get pods
           kubectl get svc
