@@ -64,52 +64,6 @@ jobs:
             -n logging \
             --wait --timeout 5m
 
-      # ================= OBSERVABILITY =================
-      - name: Install OpenTelemetry (CLEAN METHOD)
-        run: |
-          # Clean old releases (important)
-          helm uninstall otel-collector -n observability || true
-          kubectl delete namespace observability --ignore-not-found
-          kubectl create namespace observability
-
-          # Create clean config file
-          cat <<EOF > otel-values.yaml
-          mode: deployment
-
-          image:
-            repository: otel/opentelemetry-collector
-            tag: 0.102.0
-
-          config:
-            receivers:
-              otlp:
-                protocols:
-                  grpc:
-                  http:
-
-            processors:
-              batch:
-
-            exporters:
-              logging:
-                verbosity: detailed
-
-            service:
-              pipelines:
-                traces:
-                  receivers: [otlp]
-                  processors: [batch]
-                  exporters: [logging]
-          EOF
-
-          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-          helm repo update
-
-          helm install otel-collector open-telemetry/opentelemetry-collector \
-            -n observability \
-            -f otel-values.yaml \
-            --wait --timeout 5m
-
       # ================= VERIFY =================
       - name: Verify
         run: |
@@ -119,5 +73,5 @@ jobs:
           echo "===== Logging ====="
           kubectl get pods -n logging
 
-          echo "===== Observability ====="
-          kubectl get pods -n observability
+          echo "===== Services ====="
+          kubectl get svc -n monitoring
