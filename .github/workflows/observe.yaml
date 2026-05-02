@@ -1,4 +1,4 @@
-name: Observability-Pipeline
+name: Observability-pipeline
 
 on:
   workflow_dispatch:
@@ -59,7 +59,7 @@ jobs:
             --wait --timeout 10m
 
       # ================= LOGGING =================
-      - name: Install Fluent Bit (lightweight logging)
+      - name: Install Fluent Bit
         run: |
           kubectl create namespace logging --dry-run=client -o yaml | kubectl apply -f -
 
@@ -74,7 +74,7 @@ jobs:
             --wait --timeout 5m
 
       # ================= OBSERVABILITY =================
-      - name: Install OpenTelemetry Collector
+      - name: Install OpenTelemetry Collector (FIXED)
         run: |
           kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
 
@@ -86,12 +86,17 @@ jobs:
             --set mode=deployment \
             --set image.repository=otel/opentelemetry-collector \
             --set image.tag=0.102.0 \
-            --set resources.requests.memory=128Mi \
-            --set resources.limits.memory=256Mi \
-            --wait --timeout 5m
+            --set config.receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317 \
+            --set config.receivers.otlp.protocols.http.endpoint=0.0.0.0:4318 \
+            --set config.exporters.logging.loglevel=debug \
+            --set config.service.pipelines.traces.receivers[0]=otlp \
+            --set config.service.pipelines.traces.exporters[0]=logging \
+            --set resources.requests.memory=64Mi \
+            --set resources.limits.memory=128Mi \
+            --wait --timeout 10m
 
       # ================= VERIFY =================
-      - name: Verify setup
+      - name: Verify
         run: |
           echo "===== Monitoring ====="
           kubectl get pods -n monitoring
