@@ -1,6 +1,6 @@
 image:
   repository: 393060838804.dkr.ecr.us-east-1.amazonaws.com/crud-app
-  tag: latest
+  tag: "latest"
   pullPolicy: Always
 
 service:
